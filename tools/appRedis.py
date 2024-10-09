@@ -2,7 +2,7 @@ import redis
 import schedule
 import time
 import logging
-
+from typing import Optional
 from appStatus import httpCodeStatus as httpStatus
 from tools.appVariable import EXPIRE_TIME
 from tools.apploggin import create_logger
@@ -17,7 +17,7 @@ statusCode = {
 
 # Redis 键的前缀配置
 rd = {
-    "user_prefix": "user:"
+    "user": "user"
 }
 
 create_logger()
@@ -29,9 +29,15 @@ def get_redis_clientKey(key: str = '',message:str="当前用户不存在，请�
     return key
 
 class RedisDB:
-    def __init__(self, host='localhost', port=6379, db=0, decode_responses=True):
+    def __init__(self, host='localhost', port=6379, db=0, decode_responses=True,password=None):
         # 初始化 Redis 连接
-        self.redis_client = redis.Redis(host=host, port=port, db=db, decode_responses=decode_responses)
+        self.redis_client = redis.Redis(
+            host=host,
+            port=port,
+            db=db,
+            decode_responses=decode_responses,
+            password=password
+    )
 
     def is_running(self):
         """检查 Redis 是否运行中"""
@@ -43,52 +49,77 @@ class RedisDB:
             logging.error(f"{error_message}: {str(e)}")
             return False
 
-    def __repr__(self):
+    #关闭
+    def close(self)->None:
+        """在对象删除时关闭 Redis 连接"""
+        try:
+            if self.redis_client:
+                self.redis_client.close()
+                self.redis_client = None
+                logging.info("已关闭 Redis 连接")
+        except Exception as e:
+            logging.error(f"关闭 Redis 连接时出错: {str(e)}")
+    def __repr__(self)->Optional[str]:
         return f'<RedisDB {self.redis_client}>'
+    def __str__(self)->Optional[str]:
+        return f'<RedisDB {self.redis_client}>'
+    def __del__(self)->Optional[None]:
+        """在对象删除时关闭 Redis 连接"""
+        self.close()
+    def get(self, key: str = '',dictKey:str=rd.get('user'))->dict:
+        result =get_redis_clientKey(key)
+        if result:
+            """从 Redis 获取用户信息"""
+            full_key = f"{rd.get(dictKey)}{key}"
+            user_data = self.redis_client.hgetall(full_key)
+            if not user_data:
+                return httpStatus(message="用户未找到", code=statusCode[130001])
+            # 延长过期时间，保持数据活跃
+            self.redis_client.expire(full_key, EXPIRE_TIME)
+            return user_data
 
-    def get(self, key: str = ''):
-        if not key or key is None or key =='' or len(key) == 0:
-            return httpStatus(message="无法获取用户信息!!!!", data={}, code=statusCode[12001])
-        """从 Redis 获取用户信息"""
-        full_key = f"{rd.get('user_prefix')}{key}"
-        user_data = self.redis_client.hgetall(full_key)
-        if not user_data:
-            return None
-        return user_data
-
-    def set(self, key: str = '', value: dict = {}):
-        result=get_redis_clientKey(key)
+    def set(self, key: str = '', value: dict = {},dictKey:str=rd.get('user'))->dict:
+        result = get_redis_clientKey(key)
         if result:
             """将用户信息存储到 Redis"""
-            full_key = f"{rd.get('user_prefix')}{key}"
+            full_key = f"{rd.get(dictKey)}{key}"
             # 如果用户不存在则存储新信息，否则更新现有信息
             self.redis_client.hset(full_key, mapping=value)
             self.redis_client.expire(full_key, EXPIRE_TIME)  # 设置过期时间
-            return httpStatus(message="存储成功", data={})
+            return httpStatus(message="存储成功",code=200)
 
-    def delete(self, key: str = ''):
+    def delete(self, key: str = '',dictKey:str=rd.get('user'))->dict:
         result = get_redis_clientKey(key)
         if result:
             """删除用户信息"""
-            full_key = f"{rd.get('user_prefix')}{key}"
+            full_key = f"{rd.get(dictKey)}{key}"
             if self.get(key) is not None:  # 如果用户存在
                 self.redis_client.delete(full_key)
-                return httpStatus(message="删除成功", data={})
-            return httpStatus(message="用户未找到, 删除失败", data={}, code=statusCode[12000])
+                return httpStatus(message="删除成功",code=200)
+            return httpStatus(message="用户未找到, 删除失败", code=statusCode[12000])
+    def check_redis(self):
+        """检查 Redis 服务状态"""
+        if not self.is_running():
+            # 可以记录日志或发送通知以提醒管理员 Redis 未运行
+            print("Redis 未运行，请检查服务状态。")
+            logging.error("Redis 未运行，请检查服务状态。")
+            return httpStatus(message="Redis 未运行，请检查服务状态", code=statusCode[60000])
+        return httpStatus(message="Redis 运行正常", code=200)
 
-def check_redis():
-    """检查 Redis 服务状态"""
-    redis_db = RedisDB()
-    if not redis_db.is_running():
-        # 可以记录日志或发送通知以提醒管理员 Redis 未运行
-        print("Redis 未运行，请检查服务状态。")
-        logging.error("Redis 未运行，请检查服务状态。")
-        return httpStatus(message="Redis 未运行，请检查服务状态", data={}, code=statusCode[60000])
+    # 定时检查 Redis 状态
+    #特定情况使用，一般不使用
+    def open_redis_schedule(self,i:int=99)->None:
+        # 使用 schedule 库定时检查 Redis 状态
+        schedule.every(600).seconds.do(self.check_redis)  # 每隔 600 秒检查一次 Redis 是否运行
+        # 主循环，定时运行计划任务
+        if i<=10:
+            while True:
+                schedule.run_pending()
+                time.sleep(1)
+        else:
+            schedule.run_all()
+    def stop(self):
+        pass
+    def start(self):
+        pass
 
-# 使用 schedule 库定时检查 Redis 状态
-schedule.every(600).seconds.do(check_redis)  # 每隔 600 秒检查一次 Redis 是否运行
-
-# 主循环，定时运行计划任务
-while True:
-    schedule.run_pending()
-    time.sleep(1)
