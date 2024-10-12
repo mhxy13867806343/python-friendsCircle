@@ -3,6 +3,7 @@ import schedule
 import time
 import logging
 from typing import Optional
+from fastapi import status
 from appStatus import httpCodeStatus as httpStatus
 from tools.appVariable import EXPIRE_TIME
 from tools.apploggin import create_logger
@@ -24,8 +25,7 @@ def get_redis_clientKey(key: str = '',message:str="当前用户不存在，请�
 
 class RedisDB:
     def __init__(self, host='localhost', port=6379, db=0, decode_responses=True,password=None,
-                 dbKey=None, dbValue=None,
-                 dictKey="user",
+
                  ):
         # 初始化 Redis 连接
         self.redis_client = redis.Redis(
@@ -35,9 +35,8 @@ class RedisDB:
             decode_responses=decode_responses,
             password=password
     )
-        self.dbKey = dbKey
-        self.dbValue = dbValue
-        self.dictKey = dictKey
+        self.firstDb=db
+
 
     def is_running(self):
         """检查 Redis 是否运行中"""
@@ -68,47 +67,60 @@ class RedisDB:
         self.close()
     def __bool__(self)->bool:
         pass
-    def get(self)->dict:
-        key=self.dbKey
+    def __len__(self)->int:
+        pass
+    def __getitem__(self, item):
+        pass
+    def get(self,key:str='',dictKey:str='user')->dict:
         result =get_redis_clientKey(key)
         if result:
             """从 Redis 获取用户信息"""
-            full_key = f"{self.dictKey}{key}"
+            full_key = f"{dictKey}{key}"
             user_data = self.redis_client.hgetall(full_key)
             if not user_data:
-                return httpStatus(message="用户未找到", code=statusCode[130001])
+                return httpStatus(message="用户未找到",)
             # 延长过期时间，保持数据活跃
             self.redis_client.expire(full_key, EXPIRE_TIME)
             return user_data
 
-    def set(self)->dict:
-        key = self.dbKey
+    def set(self,key:str='user',dictKey:str='user',value:dict={})->dict:
         result = get_redis_clientKey(key)
         if result:
             """将用户信息存储到 Redis"""
-            full_key = f"{self.dictKey}{key}"
+            full_key = f"{dictKey}{key}"
             # 如果用户不存在则存储新信息，否则更新现有信息
-            self.redis_client.hset(full_key, mapping=self.dbValue)
+            self.redis_client.hset(full_key, mapping=value)
             self.redis_client.expire(full_key, EXPIRE_TIME)  # 设置过期时间
             return httpStatus(message="存储成功",code=200)
 
-    def delete(self,)->dict:
-        key =self.dbKey
+    def delete(self,key:str='user',dictKey:str='user')->dict:
         result = get_redis_clientKey(key)
         if result:
             """删除用户信息"""
-            full_key = f"{self.dictKey}{key}"
-            if self.dbKey is not None:  # 如果用户存在
+            full_key = f"{dictKey}{key}"
+            if self.get(key=key,dictKey=dictKey) is not None:  # 如果用户存在
                 self.redis_client.delete(full_key)
                 return httpStatus(message="删除成功",code=200)
-            return httpStatus(message="用户未找到, 删除失败", code=statusCode[12000])
+            return httpStatus(message="用户未找到, 删除失败")
+    def put(self,key:str='user',dictKey:str='user',):
+        if self.get(key,dictKey) is not None:
+            return self.set(key,dictKey)
+        return httpStatus(message="用户未找到, 更新失败")
+    def patch(self,key:str='user',dictKey:str='user',):
+        pass
+    def head(self,key:str='user',dictKey:str='user',):
+        pass
+    def options(self,key:str='user',dictKey:str='user',):
+        pass
+    def trace(self,key:str='user',dictKey:str='user',):
+        pass
     def check_redis(self):
         """检查 Redis 服务状态"""
         if not self.is_running():
             # 可以记录日志或发送通知以提醒管理员 Redis 未运行
             print("Redis 未运行，请检查服务状态。")
             logging.error("Redis 未运行，请检查服务状态。")
-            return httpStatus(message="Redis 未运行，请检查服务状态", code=statusCode[60000])
+            return httpStatus(message="Redis 未运行，请检查服务状态",)
         return httpStatus(message="Redis 运行正常", code=200)
 
     # 定时检查 Redis 状态

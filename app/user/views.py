@@ -40,14 +40,19 @@ def pcRegistered(userModel:UserInputBaseModel,db:Session = Depends(getDbSession)
     if existing is None:
         try:
             rTime = int(time.time())
-            name = str('--') + str(rTime) + str(account) + str('--')
+            name =str(rTime) + account
             password = appToken.getHashPwd(password)
+            if account=='admin':
+                utype=0
+            else:
+                utype=1
             result = User(
                 account=account,
                 password=password,
                 name_str=name,
                 login_type="pc",
                 uid=generate_uid(name_str=name, utype=0, login_type="pc"),
+                user_type=utype,
             )
             db.add(result)
             db.commit()
