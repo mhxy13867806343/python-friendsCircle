@@ -15,13 +15,7 @@ statusCode = {
     130001: 13001  # 临时数据不存在
 }
 
-# Redis 键的前缀配置
-rd = {
-    "user": "user"
-}
-
 create_logger()
-
 
 def get_redis_clientKey(key: str = '',message:str="当前用户不存在，请先注册")->str:
     if not key or key is None or key == '' or len(key) == 0:
@@ -29,7 +23,10 @@ def get_redis_clientKey(key: str = '',message:str="当前用户不存在，请�
     return key
 
 class RedisDB:
-    def __init__(self, host='localhost', port=6379, db=0, decode_responses=True,password=None):
+    def __init__(self, host='localhost', port=6379, db=0, decode_responses=True,password=None,
+                 dbKey=None, dbValue=None,
+                 dictKey="user",
+                 ):
         # 初始化 Redis 连接
         self.redis_client = redis.Redis(
             host=host,
@@ -38,6 +35,9 @@ class RedisDB:
             decode_responses=decode_responses,
             password=password
     )
+        self.dbKey = dbKey
+        self.dbValue = dbValue
+        self.dictKey = dictKey
 
     def is_running(self):
         """检查 Redis 是否运行中"""
@@ -66,11 +66,14 @@ class RedisDB:
     def __del__(self)->Optional[None]:
         """在对象删除时关闭 Redis 连接"""
         self.close()
-    def get(self, key: str = '',dictKey:str=rd.get('user'))->dict:
+    def __bool__(self)->bool:
+        pass
+    def get(self)->dict:
+        key=self.dbKey
         result =get_redis_clientKey(key)
         if result:
             """从 Redis 获取用户信息"""
-            full_key = f"{rd.get(dictKey)}{key}"
+            full_key = f"{self.dictKey}{key}"
             user_data = self.redis_client.hgetall(full_key)
             if not user_data:
                 return httpStatus(message="用户未找到", code=statusCode[130001])
@@ -78,22 +81,24 @@ class RedisDB:
             self.redis_client.expire(full_key, EXPIRE_TIME)
             return user_data
 
-    def set(self, key: str = '', value: dict = {},dictKey:str=rd.get('user'))->dict:
+    def set(self)->dict:
+        key = self.dbKey
         result = get_redis_clientKey(key)
         if result:
             """将用户信息存储到 Redis"""
-            full_key = f"{rd.get(dictKey)}{key}"
+            full_key = f"{self.dictKey}{key}"
             # 如果用户不存在则存储新信息，否则更新现有信息
-            self.redis_client.hset(full_key, mapping=value)
+            self.redis_client.hset(full_key, mapping=self.dbValue)
             self.redis_client.expire(full_key, EXPIRE_TIME)  # 设置过期时间
             return httpStatus(message="存储成功",code=200)
 
-    def delete(self, key: str = '',dictKey:str=rd.get('user'))->dict:
+    def delete(self,)->dict:
+        key =self.dbKey
         result = get_redis_clientKey(key)
         if result:
             """删除用户信息"""
-            full_key = f"{rd.get(dictKey)}{key}"
-            if self.get(key) is not None:  # 如果用户存在
+            full_key = f"{self.dictKey}{key}"
+            if self.dbKey is not None:  # 如果用户存在
                 self.redis_client.delete(full_key)
                 return httpStatus(message="删除成功",code=200)
             return httpStatus(message="用户未找到, 删除失败", code=statusCode[12000])

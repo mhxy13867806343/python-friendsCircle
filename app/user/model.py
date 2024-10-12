@@ -3,6 +3,7 @@ from pydantic import BaseModel
 from typing import Optional, List, Dict, Any, Union, TypeVar, Type, Callable, cast
 class UserInputBaseModel(BaseModel):
     uid:Optional[str] = None
+    utype:Optional[int] = None
     isStatus:Optional[int] = None
     createTime:Optional[str] = None
     updateTime:Optional[str] = None

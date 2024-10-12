@@ -55,6 +55,7 @@ class User(Base):  # 用户信息
     password = Column(String(60), nullable=False, default='', )  # 密码
     createTime = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 创建时间
     updateTime = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 更新时间
+    user_type = Column(Integer, nullable=False, default=0)  # 用户类型 0:管理员 1:普通用户 2:游客
     email_str = Column(String(100), nullable=False, default='')  # 邮箱
     name_str = Column(String(30), nullable=False, default='')  # 昵称
     birthday = Column(Integer, nullable=False, default=None)  # 生日 用时间戳
