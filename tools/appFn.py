@@ -11,13 +11,11 @@ def generate_uid(name_str:str='',utype:int=1,login_type:str="pc",
                  b:int=20,
                  )->str:
     shex=uuid.uuid4().hex
-    # 从哈希值中随机选择 5 到 20 个字符，包含字母、数字和特殊字符
-    timestamp = int(datetime.now().timestamp()*1000)
     chars =string.digits + string.ascii_letters + string.punctuation
     uid_length = random.randint(a, b)
     uid = ''.join(random.choices( chars, k=uid_length))
     shex="".join(random.choices( shex, k=uid_length))
-    result:str=f"{name_str}{timestamp}{uid}{utype}{login_type}{shex}"
+    result:str=f"{name_str}{shex}{uid}{utype}{login_type}"
     return result
 
 

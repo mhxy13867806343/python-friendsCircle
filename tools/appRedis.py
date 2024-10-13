@@ -4,7 +4,7 @@ import time
 import logging
 from typing import Optional
 from fastapi import status
-from appStatus import httpCodeStatus as httpStatus
+from .appStatus import httpCodeStatus as httpStatus
 from tools.appVariable import EXPIRE_TIME
 from tools.apploggin import create_logger
 

@@ -26,7 +26,7 @@ class Comment(Base):
 class FriendsCircle(Base):
     __tablename__ = 'friendsCircle'
     id = Column(Integer, primary_key=True, autoincrement=True)
-    user_id = Column(Integer, ForeignKey('account.id'), nullable=False)
+    user_id = Column(Integer, ForeignKey('user.id'), nullable=False)
     content = Column(Text, nullable=True)
     createTime = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 创建时间
     updateTime = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 更新时间
@@ -47,7 +47,7 @@ class FriendsCircle(Base):
 
 # 用户信息
 class User(Base):  # 用户信息
-    __tablename__ = ' user'
+    __tablename__ = 'user'
     id = Column(Integer, primary_key=True, autoincrement=True)  # 自增主键
     uid = Column(String(32), nullable=False, default='')  # 用户唯一标识符 通过这个去获取用户相关的信息
     phone = Column(String(11), nullable=False, default='')  # 手机号
@@ -58,12 +58,12 @@ class User(Base):  # 用户信息
     user_type = Column(Integer, nullable=False, default=0)  # 用户类型 0:管理员 1:普通用户 2:游客
     email_str = Column(String(100), nullable=False, default='')  # 邮箱
     name_str = Column(String(30), nullable=False, default='')  # 昵称
-    birthday = Column(Integer, nullable=False, default=None)  # 生日 用时间戳
+    birthday = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))# 生日 用时间戳
     sex = Column(Integer, nullable=False, default=0)  # 0:男 1:女 2:未知
     # 省市区
-    province_code = Column(Integer, nullable=False, default='')  # 省份code
-    city_code = Column(Integer, nullable=False, default='')  # 城市code
-    district_code = Column(Integer, nullable=False, default='')  # 区县code
+    province_code = Column(String(100), nullable=False, default='')  # 省份code
+    city_code = Column(String(100), nullable=False, default='')  # 城市code
+    district_code = Column(String(100), nullable=False, default='')  # 区县code
     address = Column(String(100), nullable=False, default='')  # 详细地址
     isStatus = Column(Integer, nullable=False, default=0)  # 0:正常 1:封禁 2:删除
     ip_v64 = Column(String(56), nullable=False, default='')  # 注册ip
