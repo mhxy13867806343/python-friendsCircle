@@ -7,7 +7,8 @@ from fastapi.middleware.httpsredirect import HTTPSRedirectMiddleware
 from fastapi.responses import JSONResponse
 from jose import JWTError
 from starlette.middleware.base import BaseHTTPMiddleware
-import  appToken
+import  tools.appToken as appToken
+
 from tools.appStatus import httpCodeStatus
 
 
