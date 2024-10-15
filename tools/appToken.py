@@ -19,7 +19,7 @@ oauth_scheme= OAuth2PasswordBearer(tokenUrl="login")
 
 def getHashPwd(password:str):
     return pwdContext.hash(password)
-def check_password(plain_password:str, hashed_password:str):
+def checkPassword(plain_password:str, hashed_password:str):
     """
     验证明文密码和哈希密码是否匹配。
     :param plain_password: 用户输入的明文密码
@@ -45,6 +45,22 @@ def paseToken(token: str = Depends(oauth_scheme)) -> Optional[int]:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: str = payload.get("sub")
         return int(user_id) if user_id else None
+    except (JWTError, ValueError):
+        return None
+
+#修改新的token
+def refreshToken(old_token: str = Depends(oauth_scheme)):
+    try:
+        payload = jwt.decode(old_token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: str = payload.get("sub")
+        if user_id:
+            data = {
+                "sub": user_id,
+                "exp": datetime.utcnow() + timedelta(minutes=30)
+            }
+            new_token = jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
+            return new_token
+        return None
     except (JWTError, ValueError):
         return None
 def getNotCurrentUserId(request: Request) -> Optional[int]:

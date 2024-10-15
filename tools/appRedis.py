@@ -71,7 +71,7 @@ class RedisDB:
         pass
     def __getitem__(self, item):
         pass
-    def get(self,key:str='',dictKey:str='user')->dict:
+    def get(self,key:str='',dictKey:str='pc')->dict:
         result =get_redis_clientKey(key)
         if result:
             """从 Redis 获取用户信息"""
@@ -83,7 +83,7 @@ class RedisDB:
             self.redis_client.expire(full_key, EXPIRE_TIME)
             return user_data
 
-    def set(self,key:str='user',dictKey:str='user',value:dict={})->dict:
+    def set(self,key:str='',dictKey:str='pc',value:dict={})->dict:
         result = get_redis_clientKey(key)
         if result:
             """将用户信息存储到 Redis"""
@@ -92,8 +92,7 @@ class RedisDB:
             self.redis_client.hset(full_key, mapping=value)
             self.redis_client.expire(full_key, EXPIRE_TIME)  # 设置过期时间
             return httpStatus(message="存储成功",code=200)
-
-    def delete(self,key:str='user',dictKey:str='user')->dict:
+    def delete(self,key:str='',dictKey:str='pc')->dict:
         result = get_redis_clientKey(key)
         if result:
             """删除用户信息"""

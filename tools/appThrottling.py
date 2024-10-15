@@ -14,9 +14,9 @@ async def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "data":{
-                "message":f"请求过于频繁，请稍后再试!!!,来自{host}客户端地址被请求限制,请稍后重启吧!!!",
+             "message": f"请求过于频繁，请稍后再试!!!,来自{host}客户端地址被请求限制,请稍后重启吧!!!",
                 "code": status.HTTP_400_BAD_REQUEST,
-            }
+            "data":{},
+            "success": False
         }
     )
