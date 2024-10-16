@@ -19,6 +19,11 @@ def generate_uid(name_str:str='',utype:int=1,login_type:str="pc",
     return result
 
 
+def validate_format(text):
+    if not text:
+        return False
+    pattern = re.compile(r'^(?!\d+$)[a-zA-Z0-9]+$')
+    return bool(pattern.fullmatch(text))
 
 # 验证用户名的正则表达式
 def validate_username(value:str="")->bool:
