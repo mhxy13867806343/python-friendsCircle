@@ -1,5 +1,6 @@
 import redis
 import schedule
+import json
 import time
 import logging
 from typing import Optional
@@ -13,7 +14,8 @@ statusCode = {
     12000: 12000,  # 用户未找到，删除失败
     12001: 12001,  # 用户已存在
     60000: 60000,  # Redis 未启动
-    130001: 13001  # 临时数据不存在
+    130001: 13001,  # 临时数据不存在
+90002:90002, #解析失败
 }
 
 create_logger()
@@ -71,6 +73,40 @@ class RedisDB:
         pass
     def __getitem__(self, item):
         pass
+
+    #解析redis返回值
+    def parse_redis_result(self,key:str="")->dict:
+        dresult: dict = {}
+        result =get_redis_clientKey(key)
+        if not result:
+            return httpStatus(message="无法解析redis返回值",code=statusCode[90002])
+        result=self.redis_client.get(key)
+        if not result:
+            return httpStatus(message="redis中无此数据",code=statusCode[90002])
+        try:
+            json_value = json.loads(key)
+            print(json_value,type(json_value))
+
+            if not isinstance(json_value,dict):
+                return httpStatus(message="解析失败",code=statusCode[90002])
+            for k,v in json_value.items():
+                dresult[k]=v
+            return dresult
+        except json.JSONDecodeError as e:
+            # 如果不是 JSON 格式，判断是否为简单的字符串或数字
+            if "=" in key and ";" in key:
+                # 假定是类似 'a=1;b=2' 的格式，进行分割
+                pairs = key.split(';')
+                for pair in pairs:
+                    if '=' in pair:
+                        k, v = pair.split('=')
+                        dresult[k.strip()] = v.strip()
+                return dresult
+            else:
+                # 如果既不是 JSON，也不是键值对格式，直接输出原始值
+                return httpStatus(message="解析失败",code=statusCode[90002])
+
+
     def get(self,key:str='',dictKey:str='pc')->dict:
         result =get_redis_clientKey(key)
         if result:

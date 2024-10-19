@@ -130,7 +130,18 @@ def postPcLogin(request: Request,userModel:UserInputBaseModel,db:Session = Depen
 
 
 
-
+@userRouter.get('/info',description="pc端获取用户信息",summary="pc端获取用户信息")
+@limiter.limit("3/second", error_message="请求过于频繁，请稍后再试!!!")
+def getuserInfo(request: Request,user: User = Depends(appToken.paseToken),
+                        db:Session = Depends(getDbSession)):
+    # 获取用户的token
+    token = request.headers.get('Authorization')
+    if not token or not user or token is None:
+        return httpCodeStatus(message="用户信息已过期，无法获取用户信息", code=status.HTTP_401_UNAUTHORIZED)
+    try:
+        pass
+    except SQLAlchemyError as e:
+        return httpCodeStatus(message="更新失败")
 
 @userRouter.post('/exchangeToken',description="pc端更新token",summary="pc端更新token")
 @limiter.limit("3/second", error_message="请求过于频繁，请稍后再试!!!")
