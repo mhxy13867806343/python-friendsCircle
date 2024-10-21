@@ -79,39 +79,28 @@ class RedisDB:
         dresult: dict = {}
         result =get_redis_clientKey(key)
         if not result:
-            return httpStatus(message="无法解析redis返回值",code=statusCode[90002])
+            return httpStatus(message="无法解析redis返回值",code=status.HTTP_401_UNAUTHORIZED)
         result=self.redis_client.get(key)
         if not result:
-            return httpStatus(message="redis中无此数据",code=statusCode[90002])
+            return httpStatus(message="redis中无此数据",code=status.HTTP_401_UNAUTHORIZED)
         try:
             json_value = json.loads(key)
             print(json_value,type(json_value))
 
             if not isinstance(json_value,dict):
-                return httpStatus(message="解析失败",code=statusCode[90002])
+                return httpStatus(message="解析失败",code=status.HTTP_401_UNAUTHORIZED)
             for k,v in json_value.items():
                 dresult[k]=v
             return dresult
         except json.JSONDecodeError as e:
-            # 如果不是 JSON 格式，判断是否为简单的字符串或数字
-            if "=" in key and ";" in key:
-                # 假定是类似 'a=1;b=2' 的格式，进行分割
-                pairs = key.split(';')
-                for pair in pairs:
-                    if '=' in pair:
-                        k, v = pair.split('=')
-                        dresult[k.strip()] = v.strip()
-                return dresult
-            else:
-                # 如果既不是 JSON，也不是键值对格式，直接输出原始值
-                return httpStatus(message="解析失败",code=statusCode[90002])
+            return httpStatus(message="解析失败",code=status.HTTP_401_UNAUTHORIZED)
 
 
-    def get(self,key:str='',dictKey:str='pc')->dict:
+    def get(self,key:str)->dict:
         result =get_redis_clientKey(key)
         if result:
             """从 Redis 获取用户信息"""
-            full_key = f"{dictKey}{key}"
+            full_key = f"user-{key}"
             user_data = self.redis_client.hgetall(full_key)
             if not user_data:
                 return httpStatus(message="用户未找到",)
@@ -119,35 +108,36 @@ class RedisDB:
             self.redis_client.expire(full_key, EXPIRE_TIME)
             return user_data
 
-    def set(self,key:str='',dictKey:str='pc',value:dict={})->dict:
+    def set(self,key:str='',value:dict={})->dict:
         result = get_redis_clientKey(key)
         if result:
             """将用户信息存储到 Redis"""
-            full_key = f"{dictKey}{key}"
+            full_key = f"user-{key}"
             # 如果用户不存在则存储新信息，否则更新现有信息
             self.redis_client.hset(full_key, mapping=value)
             self.redis_client.expire(full_key, EXPIRE_TIME)  # 设置过期时间
             return httpStatus(message="存储成功",code=200)
-    def delete(self,key:str='',dictKey:str='pc')->dict:
+    def delete(self,key:str='')->dict:
         result = get_redis_clientKey(key)
         if result:
             """删除用户信息"""
-            full_key = f"{dictKey}{key}"
-            if self.get(key=key,dictKey=dictKey) is not None:  # 如果用户存在
+            full_key = f"user-{key}"
+            if self.get(key=full_key) is not None:  # 如果用户存在
                 self.redis_client.delete(full_key)
                 return httpStatus(message="删除成功",code=200)
             return httpStatus(message="用户未找到, 删除失败")
-    def put(self,key:str='user',dictKey:str='user',):
-        if self.get(key,dictKey) is not None:
-            return self.set(key,dictKey)
+    def put(self,key:str='user'):
+        full_key = f"user-{key}"
+        if self.get(full_key) is not None:
+            return self.set(full_key)
         return httpStatus(message="用户未找到, 更新失败")
-    def patch(self,key:str='user',dictKey:str='user',):
+    def patch(self,key:str='user'):
         pass
-    def head(self,key:str='user',dictKey:str='user',):
+    def head(self,key:str='user'):
         pass
-    def options(self,key:str='user',dictKey:str='user',):
+    def options(self,key:str='user'):
         pass
-    def trace(self,key:str='user',dictKey:str='user',):
+    def trace(self,key:str='user'):
         pass
     def check_redis(self):
         """检查 Redis 服务状态"""

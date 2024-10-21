@@ -12,7 +12,7 @@ client = redis.StrictRedis(
 # 获取键 'value1' 的值
 key = 'value1'
 value = client.get(key)
-
+d={}
 if value:
     try:
         # 尝试将字符串转换为 JSON 格式
@@ -24,7 +24,7 @@ if value:
             print(f"不是 JSON 格式数据：{json_value}")
         else:
             for k, v in json_value.items():
-                print(f"{k}: {v}")
+                d[k] = v
     except json.JSONDecodeError:
         # 如果不是 JSON 格式，判断是否为简单的字符串或数字
         if "=" in value and ";" in value:
@@ -39,3 +39,4 @@ if value:
             print(f"原始值：{value}")
 else:
     print(f"The key '{key}' does not exist in Redis.")
+print(d['b'])

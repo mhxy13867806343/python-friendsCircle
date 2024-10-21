@@ -47,7 +47,7 @@ class User(Base):  # 用户信息
     password = Column(String(60), nullable=False, default='')  # 密码
     createTime = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 创建时间
     updateTime = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 更新时间
-    user_type = Column(Integer, nullable=False, default=0)  # 用户类型
+    user_type = Column(Integer, nullable=False, default=0)  # 用户类型 0:普通用户 1:管理员 2:超级管理员
     email_str = Column(String(100), nullable=False, default='')  # 邮箱
     name_str = Column(String(30), nullable=False, default='')  # 昵称
     birthday = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 生日
@@ -66,7 +66,7 @@ class User(Base):  # 用户信息
     last_login_time = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 上一次登录时间
     browser_type = Column(String(100), nullable=False, default='chrome')  # 浏览器类型
     os_type = Column(String(100), nullable=False, default='windows')  # 操作系统类型
-    login_type = Column(Integer, nullable=False, default=0)  # 登录方式
+    login_type = Column(Integer, nullable=False, default=0)  # 登录方式 用户类型 0pc 1mobile
     login_days = Column(Integer, nullable=False, default=0)  # 登陆多少天
     avatar = Column(String(255), nullable=False, default='')  # 头像
     game_str = Column(String(255), nullable=False, default='')  # 游戏
