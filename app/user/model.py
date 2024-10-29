@@ -4,7 +4,7 @@ from typing import Optional
 from pydantic import Field
 class UserInputBaseModel(BaseModel):
     uid: Optional[str] = None
-    utype: Optional[int] = 0
+    user_type: Optional[int] = 0
     isStatus: Optional[int] = 0
     createTime: Optional[int] =  Field(default_factory=lambda: int(datetime.now().timestamp()))
     updateTime: Optional[int] = Field(default_factory=lambda: int(datetime.now().timestamp()))

@@ -15,7 +15,7 @@ app = FastAPI()
 
 v1_router = APIRouter(prefix="/v1")
 # 将各个模块的路由添加到带前缀的路由器
-v1_router.include_router(userRouter, prefix="/pc", tags=["用户管理"])
+v1_router.include_router(userRouter, prefix="", tags=["用户管理"])
 v1_router.include_router(dictRouter, prefix="/pc", tags=["字典管理"])
 v1_router.include_router(pcdsRouter, prefix="", tags=["地区管理"])
 
