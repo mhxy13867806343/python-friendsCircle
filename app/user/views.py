@@ -1,8 +1,9 @@
 from fastapi import APIRouter,Depends,status,Request
+from numpy.f2py.crackfortran import expectbegin
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from tools import appToken
 from app.user.model import UserInputBaseModel
 from models.user.model import User
@@ -71,6 +72,7 @@ def postPcRegistered(request: Request, userModel: UserInputBaseModel, db: Sessio
             uid=generate_uid(name_str=name, utype=0, login_type="pc"),
             user_type=userModel.user_type,
             ip_v64=client_ip,
+            is_login=0
         )
         db.add(result)
         db.commit()
@@ -86,34 +88,35 @@ def saveUserInfo(account:str,existing:User):
         "uid": str(existing.uid),
         "phone": existing.phone,
         "account": existing.account,
-        "createTime": str(existing.createTime),
-        "updateTime": str(existing.updateTime),
-        "userType": existing.user_type,
-        "email": existing.email_str,
-        "name": existing.name_str,
+        "create_time": str(existing.create_time),
+        "update_time": str(existing.update_time),
+        "user_type": existing.user_type,
+        "email_str": existing.email_str,
+        "name_str": existing.name_str,
         "birthday": str(existing.birthday),
         "sex": existing.sex,
-        "provinceCode": existing.province_code,
-        "cityCode": existing.city_code,
-        "districtCode": existing.district_code,
-        "address": existing.address,
-        "isStatus": existing.isStatus,
-        "ip": existing.ip_v64,
-        "vx": existing.vx_str,
-        "qq": existing.qq_id,
-        "github": existing.github_id,
-        "juejin": existing.juejin_id,
-        "card": existing.id_card,
-        "lastLoginTime": existing.last_login_time,
-        "browserType": existing.browser_type,
-        "osType": existing.os_type,
-        "loginType": existing.login_type,
-        "loginDays": existing.login_days,
-        "avatarUrl": existing.avatar,
-        "game": existing.game_str,
-        "job": existing.job_str,
-        "company": existing.company_str,
-        "marriageStatus": existing.marriage_status,
+        "province_code": existing.province_code,
+        "city_code": existing.city_code,
+        "district_code": existing.district_code,
+        "address_str": existing.address_str,
+        "is_status": existing.is_status,
+        "ip_v64": existing.ip_v64,
+        "vx_id": existing.vx_id,
+        "qq_id": existing.qq_id,
+        "github_id": existing.github_id,
+        "juejin_id": existing.juejin_id,
+        "id_card": existing.id_card,
+        "last_login_time": existing.last_login_time,
+        "browser_type": existing.browser_type,
+        "os_type": existing.os_type,
+        "login_type": existing.login_type,
+        "login_days": existing.login_days,
+        "avatar_url": existing.avatar_url,
+        "game_str": existing.game_str,
+        "job_str": existing.job_str,
+        "company_str": existing.company_str,
+        "marriage_status": existing.marriage_status,
+        "is_login": existing.is_login
     }
     # 将数据写入 Redis 缓存
     setRedisInfo(account,data)
@@ -161,28 +164,13 @@ def postPcLogin(request: Request, userModel: UserInputBaseModel, db: Session = D
         data=saveUserInfo(account,user)
     if not appToken.checkPassword(password, data['password']):
         return httpCodeStatus(message="密码错误")
-    if data.get("isStatus") != 0:
+    if data.get("is_status") != 0:
         return httpCodeStatus(message="账号已被封禁或者删除,请联系管理员")
 
-    #验证多少天login_days
-    login_days = data.get('login_days')
-
-    if login_days==0:
-        return httpCodeStatus(message="今天是您的第一次登录,欢迎您访问本系统!")
-    data['login_days'] = login_days + 1
-    if login_days>0:
-        data["last_login_time"] =int(datetime.now().timestamp())
-    #生成 30 60 90 120 150 180 210 240 270 300 330 360
-    day30=[x*30 for x in range(1,13)]
-    if login_days<=day30[-1]:
-        if login_days in day30:
-            return httpCodeStatus(message="您已经连续登录超过" + str(login_days) + "天!!!")
-    #每3年提示一次
-    if login_days%3*365==0:
-        return httpCodeStatus(message="您已经连续登录超过" + str(login_days) + "天!!!")
+        # 4. 处理登录天数
+    data = update_login_status(data)
     #获取上次登录时间 第一次登陆，肯定是注册的时间了
         # 4. 获取上次登录时间并更新为当前时间
-
     token = appToken.createToken(data, expires_delta)
     result = {
         "token": token,
@@ -204,6 +192,7 @@ def getUserInfo(request: Request,user: User = Depends(appToken.paseToken),
     try:
         result=redis_db.parse_redis_result(key=user.account)
         if result:
+            result = update_login_status(result)
             return httpCodeStatus(code=status.HTTP_200_OK, message="获取成功", data=result)
         return httpCodeStatus(message="用户信息已过期，无法获取用户信息", code=h401)
     except SQLAlchemyError as e:
@@ -222,7 +211,7 @@ def putUserInfo(request: Request, model: UserInputBaseModel,user: User = Depends
             return httpCodeStatus(message="用户信息获取失败")
         # 更新用户信息
         result['phone']=model.phone   or ""
-        result['updateTime']=model.updateTime or ""
+        result['update_time']=model.update_time or ""
         result['email_str']=model.email_str or ""
         result['name_str']=model.name_str or ""
         result['birthday']=model.birthday
@@ -230,12 +219,12 @@ def putUserInfo(request: Request, model: UserInputBaseModel,user: User = Depends
         result['province_code']=model.province_code or ""
         result['city_code']=model.city_code or ""
         result['district_code']=model.district_code or ""
-        result['address']=model.address or ""
+        result['address_str']=model.address_str or ""
         result['qq_id']=model.qq_id or ""
         result['vx_id']=model.vx_id or ""
         result['github_id']=model.github_id or ""
         result['juejin_id']=model.juejin_id or ""
-        result['avatar']=model.avatar  or ""
+        result['avatar_url']=model.avatar_url  or ""
         result['game_str']=model.game_str or ""
         result['job_str']=model.job_str or ""
         result['company_str']=model.company_str or ""
@@ -266,3 +255,52 @@ def get_headers_token(request: Request,user: User = Depends(appToken.paseToken))
     return token
 def setRedisInfo(key,value)->None:
     redis_db.set(key=key, value=value)
+
+
+def is_today_timestamp(timestamp: int) -> bool:
+    """
+    判断给定的 Unix 时间戳是否是今天
+    :param timestamp: Unix 时间戳
+    :return: 如果是今天返回 True，否则返回 False
+    """
+    # 将时间戳转换为 datetime 对象
+    given_date = datetime.fromtimestamp(timestamp).date()
+
+    # 获取当前日期
+    current_date = date.today()
+
+    # 判断是否是今天
+    return given_date == current_date
+
+
+
+# 更新登录状态 比如用户登录，情况
+def update_login_status(data: dict) -> dict:
+    try:
+        login_days = data.get('login_days', 0)
+        last_login_time = data.get("last_login_time")
+
+        if last_login_time and is_today_timestamp(last_login_time):
+            is_login = 1
+        else:
+            is_login = 0
+        data["is_login"] = is_login
+        if data["is_login"] == 0:
+            data['login_days'] = login_days + 1
+            data["last_login_time"] = int(datetime.now().timestamp())
+            data["is_login"] = 1
+            # 生成 30 60 90 120 150 180 210 240 270 300 330 360
+        day30 = [x * 30 for x in range(1, 13)]
+        if login_days <= day30[-1]:
+            if login_days in day30:
+                return httpCodeStatus(message="您已经连续登录超过" + str(login_days) + "天!!!")
+        # 每3年提示一次
+        if login_days % 3 * 365 == 0:
+            return httpCodeStatus(message="您已经连续登录超过" + str(login_days) + "天!!!")
+        # 获取上次登录时间 第一次登陆，肯定是注册的时间了
+        # 4. 获取上次登录时间并更新为当前时间
+        return data
+    except Exception as e:
+        return httpCodeStatus(message="更新登录状态失败")
+    except SQLAlchemyError as e:
+        return httpCodeStatus(message="更新登录状态失败")

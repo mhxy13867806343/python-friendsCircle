@@ -45,8 +45,10 @@ class User(Base):  # 用户信息
     phone = Column(String(11), nullable=False, default='')  # 手机号
     account = Column(String(50), nullable=False, default='')  # 账号
     password = Column(String(60), nullable=False, default='')  # 密码
-    createTime = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 创建时间
-    updateTime = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 更新时间
+    #今天是否登录过
+    is_login = Column(Integer, nullable=False, default=0) # 0:未登录 1:已登录
+    create_time = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 创建时间
+    update_time = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 更新时间
     user_type = Column(Integer, nullable=False, default=0)  # 用户类型 0:普通用户 1:管理员 2:超级管理员
     email_str = Column(String(100), nullable=False, default='')  # 邮箱
     name_str = Column(String(30), nullable=False, default='')  # 昵称
@@ -55,8 +57,8 @@ class User(Base):  # 用户信息
     province_code = Column(String(100), nullable=False, default='')  # 省份code
     city_code = Column(String(100), nullable=False, default='')  # 城市code
     district_code = Column(String(100), nullable=False, default='')  # 区县code
-    address = Column(String(100), nullable=False, default='')  # 详细地址
-    isStatus = Column(Integer, nullable=False, default=0)  # 0:正常 1:封禁 2:删除
+    address_str = Column(String(100), nullable=False, default='')  # 详细地址
+    is_status = Column(Integer, nullable=False, default=0)  # 0:正常 1:封禁 2:删除
     ip_v64 = Column(String(56), nullable=False, default='')  # 注册ip
     vx_id = Column(String(100), nullable=False, default='')  # 微信id
     qq_id = Column(String(100), nullable=False, default='')  # qq号
@@ -68,7 +70,7 @@ class User(Base):  # 用户信息
     os_type = Column(String(100), nullable=False, default='windows')  # 操作系统类型
     login_type = Column(Integer, nullable=False, default=0)  # 登录方式 用户类型 0pc 1mobile
     login_days = Column(Integer, nullable=False, default=0)  # 登陆多少天
-    avatar = Column(String(255), nullable=False, default='')  # 头像
+    avatar_url = Column(String(255), nullable=False, default='')  # 头像
     game_str = Column(String(255), nullable=False, default='')  # 游戏
     job_str = Column(String(255), nullable=False, default='')  # 职位
     company_str = Column(String(100), nullable=False, default='')  # 公司
