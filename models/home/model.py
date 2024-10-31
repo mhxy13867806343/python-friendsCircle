@@ -1,6 +1,8 @@
 from datetime import datetime
 from sqlalchemy import Column, Integer, String, ForeignKey, Text
 from sqlalchemy.orm import relationship
+from traitlets import default
+
 from extend.db import Base
 
 
@@ -36,3 +38,5 @@ class FunctionalVersion(Base):
     create_time = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # Creation timestamp
     update_time = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp())) # Update timestamp
     version = Column(String(50), nullable=False)  # Version identifier
+    create_user=Column(String(30), nullable=False,default='admin')  # 创建人
+    is_status = Column(Integer, nullable=False,default=0)  # 状态 0正常 1删除

@@ -304,20 +304,7 @@ async def upload_public_files( request: Request,files: List[UploadFile] = File(.
     """
     允许任何人使用的公共上传接口，支持批量上传文件。
     """
-    upload_results = {"success": [], "failed": []}
-    date_folder = get_date_folder()
-
-    for file in files:
-
-        validation = await uploadValidateFile(file, ["jpg", "png", "jpeg"])
-        if validation["code"] != 200:
-            upload_results["failed"].append({"file_name": file.filename, "reason": validation["message"]})
-            continue
-        destination_path = f"{date_folder}/public/{file.filename}"
-        saved_path = await uploadsSaveFile(file, destination_path)
-        upload_results["success"].append({"file_url": file.filename, "path": saved_path})
-
-    return httpCodeStatus(code=status.HTTP_200_OK, message="文件上传成功", data=upload_results)
+    return uploadResultsFile(files,1,None)
 
 # 3. 上传接口 - 用户上传，支持批量上传
 @userRouter.post('/upload/user', summary="用户批量上传接口")
@@ -331,24 +318,29 @@ async def upload_user_files(
     if not result:
         return httpCodeStatus(message="不能进行上传操作,请重新登录", code=status.HTTP_401_UNAUTHORIZED)
 
+    return uploadResultsFile(files,1,result)
+
+async def uploadResultsFile(files,lvel=0,result=None):
+    extensions=["jpg", "png", "jpeg"]
     # 批量处理文件上传
     upload_results = {"success": [], "failed": []}
     date_folder = get_date_folder()
 
     for file in files:
-        content = await uploadValidateFile(file, ["jpg", "png", "jpeg"])
+        content = await uploadValidateFile(file, extensions)
         if not content:
             return
         # 文件保存到 upload/yyyy-mm-dd/{username} 目录中
-        destination_path = f"{result.id}-{result.uid}-{result.name_str}/{date_folder}/files/{file.filename}"
+        if lvel==1:
+            destination_path = f"{result.id}-{result.uid}-{result.name_str}/{date_folder}/files/{file.filename}"
+        else:
+            destination_path = f"{date_folder}/public/{file.filename}"
         saved_path = await uploadsSaveFile(file, destination_path)
         if isinstance(saved_path, str):
             upload_results["success"].append({"file_name": file.filename, "path": saved_path})
         else:
             upload_results["failed"].append({"file_name": file.filename, "reason": "文件保存失败"})
     return httpCodeStatus(code=status.HTTP_200_OK, message="文件上传成功", data=upload_results)
-
-
 # 获取请求头中的 token
 def get_headers_token(request: Request,user: User = Depends(appToken.paseToken)):
     # 获取用户的 token

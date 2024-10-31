@@ -1,6 +1,7 @@
 from fastapi import FastAPI,APIRouter
 from starlette.middleware.base import BaseHTTPMiddleware
 from extend.db import Base, ENGIN # 导入数据库相关模块
+from app.home.views import homeRouter
 from app.user.views import userRouter
 from app.dicts.views import dictRouter
 from app.pcds.views import pcdsRouter
@@ -15,6 +16,7 @@ app = FastAPI()
 
 v1_router = APIRouter(prefix="/v1")
 # 将各个模块的路由添加到带前缀的路由器
+v1_router.include_router(homeRouter, prefix="/home", tags=["首页管理"])
 v1_router.include_router(userRouter, prefix="", tags=["用户管理"])
 v1_router.include_router(dictRouter, prefix="/pc", tags=["字典管理"])
 v1_router.include_router(pcdsRouter, prefix="", tags=["地区管理"])
