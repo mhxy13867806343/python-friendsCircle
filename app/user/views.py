@@ -1,4 +1,6 @@
-from fastapi import APIRouter,Depends,status,Request
+from typing import List
+
+from fastapi import APIRouter, Depends, status, Request, UploadFile, File
 from numpy.f2py.crackfortran import expectbegin
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
@@ -8,6 +10,7 @@ from tools import appToken
 from app.user.model import UserInputBaseModel
 from models.user.model import User
 from tools.appFn import validate_password, generate_uid
+from tools.appFnPublicValidateModelBool import uploadsSaveFile, get_date_folder, uploadValidateFile
 from tools.appStatus import httpCodeStatus
 from tools.appRedis import RedisDB
 from tools.appThrottling import limiter
@@ -246,6 +249,106 @@ def putUserInfo(request: Request, model: UserInputBaseModel,user: User = Depends
 def postPcLogout(request: Request, user: User = Depends(appToken.paseToken)):
     redis_db.delete(key=user.account)
     return httpCodeStatus(code=status.HTTP_200_OK, message="退出成功")
+
+
+
+
+
+# 1. 上传接口 - 头像上传，仅支持单文件上传
+@userRouter.post('/upload/avatar', description='用户头像上传接口',summary="用户头像上传接口")
+@limiter.limit("3/second", error_message="请求过于频繁，请稍后再试!!!")
+async def upload_avatar(
+        request: Request,
+    file: UploadFile = File(...),
+user: User = Depends(appToken.paseToken),
+    db:Session = Depends(getDbSession),
+):
+    """
+    用户头像上传接口，仅支持上传一个文件。
+    """
+    # 获取当前用户信息
+    result=db.query(User).filter(User.id ==user).first()
+    if not result:
+        return httpCodeStatus(message="不能进行上传操作,请重新登录", code=status.HTTP_401_UNAUTHORIZED)
+    # 文件保存路径（用户头像目录），日期文件夹中
+    try:
+        date_folder = get_date_folder()
+        destination_path = f"{result.id}-{result.uid}-{result.name_str}/{date_folder}/avatar/{file.filename}"
+        content=await uploadValidateFile(file,["jpg","png","jpeg"])
+        if not content:
+            return
+        try:
+            saved_path = await uploadsSaveFile(file, destination_path)
+            data = {
+                "avatar_url": file.filename,
+                "path": saved_path
+            }
+            # 更新用户头像信息
+            result.avatar_url = file.filename
+            db.commit()
+            # 更新 Redis 缓存
+            setRedisInfo(result.account,result)
+            db.refresh(result)
+            return httpCodeStatus(code=status.HTTP_200_OK, message="文件上传成功", data=data)
+        except SQLAlchemyError as e:
+            db.rollback()
+            return httpCodeStatus(message="文件上传失败", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except SQLAlchemyError as e:
+        return httpCodeStatus(message="数据库操作失败", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except Exception as e:
+        return httpCodeStatus(message="文件上传失败", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+# 2. 上传接口 - 公共上传，支持批量上传
+@userRouter.post('/upload/public',description='公共批量上传接口', summary="公共批量上传接口")
+async def upload_public_files( request: Request,files: List[UploadFile] = File(...)):
+    """
+    允许任何人使用的公共上传接口，支持批量上传文件。
+    """
+    upload_results = {"success": [], "failed": []}
+    date_folder = get_date_folder()
+
+    for file in files:
+
+        validation = await uploadValidateFile(file, ["jpg", "png", "jpeg"])
+        if validation["code"] != 200:
+            upload_results["failed"].append({"file_name": file.filename, "reason": validation["message"]})
+            continue
+        destination_path = f"{date_folder}/public/{file.filename}"
+        saved_path = await uploadsSaveFile(file, destination_path)
+        upload_results["success"].append({"file_url": file.filename, "path": saved_path})
+
+    return httpCodeStatus(code=status.HTTP_200_OK, message="文件上传成功", data=upload_results)
+
+# 3. 上传接口 - 用户上传，支持批量上传
+@userRouter.post('/upload/user', summary="用户批量上传接口")
+async def upload_user_files(
+        request: Request,
+    files: List[UploadFile] = File(...),
+        user: User = Depends(appToken.paseToken),
+        db: Session = Depends(getDbSession),
+):
+    result=db.query(User).filter(User.id ==user).first()
+    if not result:
+        return httpCodeStatus(message="不能进行上传操作,请重新登录", code=status.HTTP_401_UNAUTHORIZED)
+
+    # 批量处理文件上传
+    upload_results = {"success": [], "failed": []}
+    date_folder = get_date_folder()
+
+    for file in files:
+        content = await uploadValidateFile(file, ["jpg", "png", "jpeg"])
+        if not content:
+            return
+        # 文件保存到 upload/yyyy-mm-dd/{username} 目录中
+        destination_path = f"{result.id}-{result.uid}-{result.name_str}/{date_folder}/files/{file.filename}"
+        saved_path = await uploadsSaveFile(file, destination_path)
+        if isinstance(saved_path, str):
+            upload_results["success"].append({"file_name": file.filename, "path": saved_path})
+        else:
+            upload_results["failed"].append({"file_name": file.filename, "reason": "文件保存失败"})
+    return httpCodeStatus(code=status.HTTP_200_OK, message="文件上传成功", data=upload_results)
+
+
 # 获取请求头中的 token
 def get_headers_token(request: Request,user: User = Depends(appToken.paseToken)):
     # 获取用户的 token

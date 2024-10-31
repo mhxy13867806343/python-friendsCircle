@@ -18,11 +18,21 @@ class Carousel(Base):
     text = Column(Text, nullable=False,default='') # 文本
     priority = Column(Integer, default=0)  # 优先级，越大越靠前
     is_status = Column(Integer, nullable=False,default=0)  # 状态 0正常 1删除
-    createTime = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 创建时间
-    updateTime = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 更新时间
+    create_time = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 创建时间
+    update_time = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # 更新时间
     #结束时间 +30天
     end_time = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp())+2592000)  # 结束时间
+    is_end_time=Column(Integer, nullable=False,default=0)  # 是否有结束时间 0没有 1有
     create_user=Column(String(30), nullable=False,default='admin')  # 创建人
     browse_count = Column(Integer, nullable=False, default=0)  # 浏览次数
 
 
+
+class FunctionalVersion(Base):
+    __tablename__ = 'functional_version'
+    id=Column(Integer, primary_key=True, autoincrement=True)
+    title = Column(String(255), nullable=False,default="标题内容")  # Title of the version
+    content = Column(Text, nullable=False)  # Content as rich text
+    create_time = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp()))  # Creation timestamp
+    update_time = Column(Integer, nullable=False, default=lambda: int(datetime.now().timestamp())) # Update timestamp
+    version = Column(String(50), nullable=False)  # Version identifier

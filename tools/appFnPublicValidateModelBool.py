@@ -1,7 +1,10 @@
 # 字典公共验证函数
+import io
 import logging
-from typing import Callable
-from fastapi import  status
+import os
+from datetime import datetime
+from typing import Callable, List
+from fastapi import status, UploadFile
 from sqlalchemy.exc import SQLAlchemyError
 
 from tools.appFn import validate_format
@@ -29,4 +32,86 @@ def handle_db_operation(db_func: Callable[[], None]):
     except SQLAlchemyError as e:
         logger.error(f"数据库操作失败: {e}")
         return httpCodeStatus(message=f"操作失败: {str(e)}")
+# 通用文件保存函数
+async def uploadsSaveFile(file: UploadFile, url: str) -> str:
+    if not url:
+        return httpCodeStatus(message="文件保存路径不能为空", code=status.HTTP_400_BAD_REQUEST)
+    try:
+        # 设置根保存路径
+        base_upload_path = "upload"
+        if not os.path.exists(base_upload_path):
+            os.makedirs(base_upload_path)
+        # 将目标路径拼接到根保存路径下
+        full_destination_path = os.path.join(base_upload_path, url)
 
+        # 创建保存路径的目录（如果不存在）
+        os.makedirs(os.path.dirname(full_destination_path), exist_ok=True)
+        # 重置文件指针到开头位置，以防止之前被消费
+        file.file.seek(0)
+
+        # 读取文件内容
+        content = await file.read()
+        # 读取并保存文件
+        with open(full_destination_path, "wb") as f:
+            f.write(content)
+            # 打印/记录保存路径以用于调试
+        print(f"File saved at: {full_destination_path}")
+        return f"/{base_upload_path}/{url}"
+    except SQLAlchemyError as e:
+        return httpCodeStatus(message="文件保存失败", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except Exception as e:
+        return httpCodeStatus(message=f"文件保存失败: {e}", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+def get_date_folder() -> str:
+    return datetime.now().strftime("%Y-%m-%d")
+
+
+# 文件验证函数
+# 文件验证函数：验证文件类型
+async def uploadValidateFile(file: UploadFile, extensions: List[str]=None) -> dict:
+    if extensions is None:
+        allowed_extensions=[".jpg", ".jpeg", ".png"]
+    # 验证文件扩展名
+    if not any(file.filename.lower().endswith(ext) for ext in allowed_extensions):
+        return {
+            "code": 400,
+            "message": f"文件类型错误，仅支持以下格式: {', '.join(allowed_extensions)}"
+        }
+
+    content = await file.read()
+    if not content:
+        return httpCodeStatus(message="文件内容为空", code=status.HTTP_400_BAD_REQUEST)
+    # 重置文件指针以供后续使用
+    file.file.seek(0)
+    return httpCodeStatus(code=status.HTTP_200_OK, message="文件验证通过", data={
+        "content": content,
+    })
+
+
+# 文件保存函数
+async def uploadsSaveFile(file: UploadFile, url: str) -> str:
+    if not url:
+        return httpCodeStatus(message="文件保存路径不能为空", code=status.HTTP_400_BAD_REQUEST)
+    try:
+        # 设置根保存路径
+        base_upload_path = "upload"
+        if not os.path.exists(base_upload_path):
+            os.makedirs(base_upload_path)
+
+        # 将目标路径拼接到根保存路径下
+        full_destination_path = os.path.join(base_upload_path, url)
+
+        # 创建保存路径的目录（如果不存在）
+        os.makedirs(os.path.dirname(full_destination_path), exist_ok=True)
+
+        # 读取并保存文件
+        content = await file.read()
+        with open(full_destination_path, "wb") as f:
+            f.write(content)
+
+        print(f"File saved at: {full_destination_path}")
+        return f"/{base_upload_path}/{url}"
+
+    except SQLAlchemyError:
+        return httpCodeStatus(message="文件保存失败", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+    except Exception as e:
+        return httpCodeStatus(message=f"文件保存失败: {e}", code=status.HTTP_500_INTERNAL_SERVER_ERROR)
